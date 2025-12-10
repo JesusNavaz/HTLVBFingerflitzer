@@ -27,6 +27,11 @@ $ServicePrincipal = az ad sp create-for-rbac `
 
 gh secret set AZURE_CREDENTIALS --repo JesusNavaz/HTLVBFingerflitzer --body "$ServicePrincipal"
 
+az webapp deployment slot create `
+  --slot staging `
+  --name wa-fingerflitzer-$UserName `
+  --resource-group rg-fingerflitzer
+
 # Allow access from web app to database
 # see https://learn.microsoft.com/en-us/azure/app-service/tutorial-connect-msi-azure-database
 # az extension add --name serviceconnector-passwordless --upgrade
@@ -60,4 +65,3 @@ az group delete --name rg-fingerflitzer --no-wait
 $ServicePrincipal = az ad sp list --display-name "gh-action-to-deploy-fingerflitzer-webapp-silo" | ConvertFrom-Json
 az ad sp delete --id $ServicePrincipal.id
 #>
-
