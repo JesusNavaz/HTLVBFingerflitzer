@@ -1,5 +1,6 @@
 $UserName = ((az ad signed-in-user show | ConvertFrom-Json).userPrincipalName -replace '@.*$','' -replace '\W','').ToLower()
- 
+$GitHubRepositoryName = "JesusNavaz/HTLVBFingerflitzer"
+
 az group create --name rg-fingerflitzer --location swedencentral | Out-Null
 
 az appservice plan create `
@@ -25,12 +26,34 @@ $ServicePrincipal = az ad sp create-for-rbac `
   --scopes /subscriptions/$SubscriptionId/resourceGroups/rg-fingerflitzer/providers/Microsoft.Web/sites/wa-fingerflitzer-$UserName `
   --json-auth
 
-gh secret set AZURE_CREDENTIALS --repo JesusNavaz/HTLVBFingerflitzer --body "$ServicePrincipal"
+$ServicePrincipal | gh secret set AZURE_CREDENTIALS `
+  --repo $GitHubRepositoryName
 
 az webapp deployment slot create `
   --slot staging `
   --name wa-fingerflitzer-$UserName `
   --resource-group rg-fingerflitzer
+
+az webapp config appsettings set `
+  --settings "DailyChallenge__Type=static-text" "DailyChallenge__StaticText=Hi from Azure Web App!" `
+  --slot staging `
+  --name wa-fingerflitzer-$UserName `
+  --resource-group rg-fingerflitzer
+
+gh workflow run publish-fingerflitzer-web-app.yml `
+  --repo $GitHubRepositoryName
+
+$WebApp = az webapp show `
+  --name wa-fingerflitzer-$UserName `
+  --resource-group rg-fingerflitzer | ConvertFrom-Json
+Write-Host "### Web app: https://$($WebApp.defaultHostName)"
+
+$WebAppStagingSlot = az webapp deployment slot list `
+  --name wa-fingerflitzer-$UserName `
+  --resource-group rg-fingerflitzer `
+  --query "[?name=='staging'].defaultHostName" `
+  -o tsv
+Write-Host "### Web app staging: https://$WebAppStagingSlot"
 
 # Allow access from web app to database
 # see https://learn.microsoft.com/en-us/azure/app-service/tutorial-connect-msi-azure-database
@@ -54,11 +77,6 @@ az webapp deployment slot create `
 #   --admin-user $User.userPrincipalName `
 #   --admin-password $AccessToken.accessToken `
 #   --name db-beer4me-$UserName
-
-$WebApp = az webapp show `
-  --name wa-fingerflitzer-$UserName `
-  --resource-group rg-fingerflitzer | ConvertFrom-Json
-Write-Host "### Web app: https://$($WebApp.defaultHostName)"
 
 <#
 az group delete --name rg-fingerflitzer --no-wait

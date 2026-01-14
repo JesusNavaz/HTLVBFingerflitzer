@@ -1,10 +1,13 @@
 using HTLVBFingerflitzer.Web.Components;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddMicrosoftIdentityWebAppAuthentication(builder.Configuration);
 
 IConfigurationSection dailyChallengeSection =
     builder.Configuration.GetSection("DailyChallenge");
